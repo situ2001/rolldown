@@ -243,15 +243,50 @@ describe('watch cli', () => {
   it('should handle output options', async () => {
     const cwd = cliFixturesDir('watch-cli-option')
     const controller = new AbortController()
-    execa({
+    const p = execa({
       cwd,
-      reject: false,
+      // reject: false,
       cancelSignal: controller.signal,
+      env: {
+        ...process.env,
+        FORCE_COLOR: '1', // Force color output for testing
+      }
     })`rolldown index.ts -d dist -w -s`
+
+    //  const waitUtilDataFromStdout = await new Promise((resolve) => {
+    //   p.stdout.once('data', (d) => {
+    //     resolve(d.toString());
+    //   })
+    // })
+
+    // expect(waitUtilDataFromStdout).toBeDefined()
+
+    const CLEAR_SCREEN = '\x1Bc';
+    // expect(waitUtilDataFromStdout).toContain("9")
+
+    const collectStdoutFor = (ms: number): Promise<string> => {
+      return new Promise((resolve) => {
+        const chunks: string[] = []
+        p.stdout.on('data', (chunk) => {
+          chunks.push(chunk.toString())
+        })
+        setTimeout(() => {
+          resolve(chunks.join(''))
+        }, ms)
+      })
+    }
+
+    const chunks = await collectStdoutFor(1000);
+
+    // throw new Error(JSON.stringify(Array.from(chunks)))
+
+    expect(chunks).toContain(CLEAR_SCREEN)
+
     await waitUtil(() => {
       expect(fs.existsSync(path.join(cwd, 'dist'))).toBe(true)
       expect(fs.existsSync(path.join(cwd, 'dist/index.js.map'))).toBe(true)
     })
+
     controller.abort()
   })
 
